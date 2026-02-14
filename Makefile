@@ -1,17 +1,20 @@
 ELEMENT_VERSION := v1.12.10
 
-.PHONY: help setup element-download synapse-generate synapse-configure admin-user start up down logs status create-token list-tokens
+.PHONY: help setup element-download element-configure synapse-generate synapse-configure admin-user gh-setup start up down logs status create-token list-tokens
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
 
-setup: element-download synapse-generate synapse-configure admin-user ## Full first-time setup
+setup: element-download element-configure synapse-generate synapse-configure admin-user ## Full first-time setup
 
 element-download: ## Download Element Web into element/
 	@if [ -f element/index.html ]; then echo "Element already downloaded, skipping."; exit 0; fi
 	mkdir -p element
 	curl -L https://github.com/element-hq/element-web/releases/download/$(ELEMENT_VERSION)/element-$(ELEMENT_VERSION).tar.gz \
 		| tar xz --strip-components=1 -C element
+
+element-configure: ## Copy config files into element/
+	cp element-config/* element/
 
 synapse-generate: ## Generate Synapse config (only if data/ doesn't exist)
 	@if [ -f data/homeserver.yaml ]; then echo "Synapse config already exists, skipping."; exit 0; fi
@@ -41,6 +44,11 @@ admin-user: up ## Create admin user (starts server if needed)
 	done
 	docker compose exec synapse register_new_matrix_user \
 		-c /data/homeserver.yaml -a -u admin -p admin http://localhost:8008
+
+gh-setup: ## Enable GitHub Pages on the repo
+	gh api -X POST "repos/$$(gh repo view --json nameWithOwner -q .nameWithOwner)/pages" \
+		--input - <<< '{"source":{"branch":"main","path":"/"}}'
+	@echo "GitHub Pages enabled."
 
 start: ## Start services and publish tunnel URL to GitHub Pages
 	./start.sh

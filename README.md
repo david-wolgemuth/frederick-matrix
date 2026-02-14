@@ -1,6 +1,6 @@
 # Matrix Mesh Chat
 
-A self-hosted Matrix chat system for a small mesh of friends. Each member runs their own Synapse homeserver with an ephemeral Cloudflare tunnel. A shared Element Web client is hosted on GitHub Pages.
+A self-hosted Matrix chat system for a small mesh of friends. Each member runs their own Synapse homeserver with an ephemeral Cloudflare tunnel. Peers discover each other via GitHub Pages.
 
 ## Prerequisites
 
@@ -12,8 +12,14 @@ A self-hosted Matrix chat system for a small mesh of friends. Each member runs t
 ## Quick Start
 
 ```bash
-make setup    # downloads Element, generates Synapse config, creates admin user
-make start    # starts services and publishes tunnel URL to GitHub Pages
+# 1. Fork/clone this repo, push to your GitHub
+# 2. First-time setup
+make setup        # downloads Element, generates Synapse config, creates admin user
+make gh-setup     # enables GitHub Pages on your repo
+
+# 3. Edit peers.json to add your peers' server.json URLs
+# 4. Start everything
+make start        # starts services, publishes tunnel URL, watches for changes
 ```
 
 After setup:
@@ -23,18 +29,19 @@ After setup:
 
 ## How It Works
 
-Each mesh member forks this repo and runs their own Synapse server. On startup, `start.sh`:
+Each mesh member runs their own Synapse. On startup, `start.sh`:
 
 1. Starts Synapse, Element (nginx), and a Cloudflare quick tunnel
 2. Detects the ephemeral `trycloudflare.com` URL
-3. Publishes it to `element/server.json` on the repo's GitHub Pages via `gh api`
+3. Publishes it to `server.json` on the repo's GitHub Pages via `gh api`
+4. Watches for tunnel URL changes and re-publishes automatically
 
-Peers discover each other through `peers.json`, which lists URLs to each peer's `server.json`. The Element home page fetches all peers and shows online/offline status.
+Peers discover each other through `peers.json`, which lists URLs to each peer's `server.json` on their GitHub Pages. The Element home page fetches all peers and shows online/offline status.
 
 ## Day-to-Day
 
 ```bash
-make start     # start + publish tunnel URL
+make start     # start + publish tunnel URL (stays in foreground)
 make up        # start without publishing
 make down      # stop
 make logs      # follow logs
@@ -61,31 +68,32 @@ python3 mesh-admin/mesh_admin.py revoke-token <token>
 
 ## Adding a Peer
 
-1. Peer forks this repo, runs `make setup && make start`
-2. Add their `server.json` URL to your `peers.json`:
+1. Peer forks this repo, pushes to their GitHub
+2. Runs `make setup && make gh-setup && make start`
+3. Add their `server.json` URL to your `peers.json`:
    ```json
    {
      "peers": [
-       "https://alice.github.io/matrix-mesh/element/server.json"
+       "https://alice.github.io/matrix-mesh/server.json"
      ]
    }
    ```
-3. They add yours to their `peers.json`
-4. Both update `federation_domain_whitelist` in `data/homeserver.yaml`
+4. They add yours to their `peers.json`
 
 ## File Structure
 
 ```
 ├── Makefile                  # setup and management commands
-├── start.sh                  # start services + publish tunnel URL
+├── start.sh                  # start services + publish/watch tunnel URL
 ├── docker-compose.yml        # Synapse + nginx + cloudflared
+├── server.json               # this node's name + tunnel URL (updated by start.sh)
+├── peers.json                # URLs to peers' server.json files
 ├── data/                     # Synapse data (gitignored)
-├── element/                  # Element Web (assets gitignored, configs tracked)
+├── element/                  # Element Web assets (gitignored, downloaded at setup)
+├── element-config/           # Config files copied into element/ at setup
 │   ├── config.json           # local dev config (localhost)
 │   ├── config.prod.json      # production config template
-│   ├── home.html             # mesh status landing page
-│   ├── server.json           # this node's name + tunnel URL (updated by start.sh)
-│   └── peers.json            # URLs to peers' server.json files
+│   └── home.html             # mesh status landing page
 └── mesh-admin/
     └── mesh_admin.py         # registration token CLI
 ```

@@ -1,62 +1,83 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+POLL_INTERVAL=60
+
+# Detect repo once at startup
+REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+NODE_NAME=$(echo "$REPO" | cut -d/ -f1)
+
+get_tunnel_url() {
+    docker compose logs cloudflared 2>&1 \
+        | grep -oP 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' \
+        | tail -1 || true
+}
+
+publish_url() {
+    local url="$1"
+    local server_json
+    server_json=$(printf '{\n  "name": "%s",\n  "url": "%s"\n}\n' "$NODE_NAME" "$url")
+
+    # Write locally
+    echo "$server_json" > server.json
+
+    # Push to GitHub
+    local sha
+    sha=$(gh api "repos/$REPO/contents/server.json" --jq .sha 2>/dev/null || echo "")
+
+    local content_b64
+    content_b64=$(echo -n "$server_json" | base64 -w 0)
+
+    local payload
+    if [ -n "$sha" ]; then
+        payload=$(printf '{"message":"Update tunnel URL","content":"%s","sha":"%s"}' "$content_b64" "$sha")
+    else
+        payload=$(printf '{"message":"Update tunnel URL","content":"%s"}' "$content_b64")
+    fi
+
+    gh api -X PUT "repos/$REPO/contents/server.json" \
+        --input - <<< "$payload" > /dev/null
+}
+
+# Start services
 echo "Starting services..."
 docker compose up -d
 
+# Wait for initial tunnel URL
 echo "Waiting for tunnel URL..."
-TUNNEL_URL=""
+CURRENT_URL=""
 for i in $(seq 1 30); do
-    TUNNEL_URL=$(docker compose logs cloudflared 2>&1 \
-        | grep -oP 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' \
-        | tail -1) || true
-    if [ -n "$TUNNEL_URL" ]; then
+    CURRENT_URL=$(get_tunnel_url)
+    if [ -n "$CURRENT_URL" ]; then
         break
     fi
     sleep 2
 done
 
-if [ -z "$TUNNEL_URL" ]; then
+if [ -z "$CURRENT_URL" ]; then
     echo "ERROR: Could not detect tunnel URL after 60 seconds."
     echo "Check: docker compose logs cloudflared"
     exit 1
 fi
 
-echo "Tunnel URL: $TUNNEL_URL"
+echo "Publishing: $CURRENT_URL"
+publish_url "$CURRENT_URL"
 
-# Detect repo from gh CLI
-REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
-echo "Repo: $REPO"
-
-# Build server.json content
-SERVER_JSON=$(cat <<EOF
-{
-  "name": "$(echo "$REPO" | cut -d/ -f1)",
-  "url": "$TUNNEL_URL"
-}
-EOF
-)
-
-echo "Updating server.json on GitHub Pages..."
-
-# Get current file SHA (if it exists)
-SHA=$(gh api "repos/$REPO/contents/element/server.json" --jq .sha 2>/dev/null || echo "")
-
-# Base64 encode the content
-CONTENT_B64=$(echo -n "$SERVER_JSON" | base64 -w 0)
-
-# Build the API payload
-if [ -n "$SHA" ]; then
-    PAYLOAD=$(printf '{"message":"Update tunnel URL","content":"%s","sha":"%s"}' "$CONTENT_B64" "$SHA")
-else
-    PAYLOAD=$(printf '{"message":"Update tunnel URL","content":"%s"}' "$CONTENT_B64")
-fi
-
-gh api -X PUT "repos/$REPO/contents/element/server.json" \
-    --input - <<< "$PAYLOAD" > /dev/null
-
-echo "Published: $TUNNEL_URL"
 echo ""
 echo "Synapse:  http://localhost:8008"
 echo "Element:  http://localhost:8080"
-echo "Tunnel:   $TUNNEL_URL"
+echo "Tunnel:   $CURRENT_URL"
+echo ""
+echo "Watching for tunnel URL changes every ${POLL_INTERVAL}s... (Ctrl+C to stop)"
+
+# Watch for URL changes
+while true; do
+    sleep "$POLL_INTERVAL"
+    NEW_URL=$(get_tunnel_url)
+    if [ -n "$NEW_URL" ] && [ "$NEW_URL" != "$CURRENT_URL" ]; then
+        echo "$(date '+%H:%M:%S') Tunnel URL changed: $NEW_URL"
+        publish_url "$NEW_URL"
+        echo "$(date '+%H:%M:%S') Published."
+        CURRENT_URL="$NEW_URL"
+    fi
+done
