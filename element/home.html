@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Matrix Mesh Status</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.4rem; }
+    .server { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; margin: 0.5rem 0; border-radius: 6px; background: #f5f5f5; }
+    .status { width: 12px; height: 12px; border-radius: 50%; }
+    .online { background: #4caf50; }
+    .offline { background: #ccc; }
+    .checking { background: #ff9800; }
+    .server-name { font-weight: 600; }
+    .server-url { color: #666; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <h1>Mesh Nodes</h1>
+  <div id="servers"></div>
+  <script>
+    async function checkServer(url) {
+      try {
+        const resp = await fetch(url + '/_matrix/client/versions', { mode: 'cors', signal: AbortSignal.timeout(5000) });
+        return resp.ok;
+      } catch {
+        return false;
+      }
+    }
+
+    async function loadServers() {
+      const container = document.getElementById('servers');
+      let servers;
+      try {
+        const resp = await fetch('servers.json');
+        const data = await resp.json();
+        servers = data.servers;
+      } catch {
+        container.textContent = 'Failed to load server list.';
+        return;
+      }
+
+      for (const server of servers) {
+        const div = document.createElement('div');
+        div.className = 'server';
+        div.innerHTML = `
+          <div class="status checking" id="status-${server.name}"></div>
+          <div>
+            <div class="server-name">${server.name}</div>
+            <div class="server-url">${server.url}</div>
+          </div>
+        `;
+        container.appendChild(div);
+
+        checkServer(server.url).then(online => {
+          const dot = document.getElementById('status-' + server.name);
+          dot.className = 'status ' + (online ? 'online' : 'offline');
+        });
+      }
+    }
+
+    loadServers();
+  </script>
+</body>
+</html>

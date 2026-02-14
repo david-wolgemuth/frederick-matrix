@@ -1,0 +1,12 @@
+{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "http://localhost:8008",
+      "server_name": "localhost"
+    }
+  },
+  "home_url": "home.html",
+  "brand": "Matrix Mesh",
+  "disable_3pid_login": true,
+  "disable_guests": true
+}

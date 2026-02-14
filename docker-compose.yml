@@ -1,0 +1,21 @@
+services:
+  synapse:
+    image: matrixdotorg/synapse:latest
+    container_name: synapse
+    environment:
+      - UID=1000
+      - GID=1000
+    volumes:
+      - ./data:/data
+    ports:
+      - "8008:8008"
+    restart: unless-stopped
+
+  element:
+    image: nginx:alpine
+    container_name: element
+    volumes:
+      - ./element:/usr/share/nginx/html:ro
+    ports:
+      - "8080:80"
+    restart: unless-stopped

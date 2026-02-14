@@ -1,0 +1,12 @@
+{
+  "servers": [
+    {
+      "name": "Alice",
+      "url": "https://alice.tailnet-name.ts.net"
+    },
+    {
+      "name": "Bob",
+      "url": "https://bob.tailnet-name.ts.net"
+    }
+  ]
+}

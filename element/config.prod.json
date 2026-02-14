@@ -1,0 +1,12 @@
+{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "https://REPLACE_WITH_YOUR_SERVER",
+      "server_name": "REPLACE_WITH_YOUR_SERVER_NAME"
+    }
+  },
+  "home_url": "home.html",
+  "brand": "Matrix Mesh",
+  "disable_3pid_login": true,
+  "disable_guests": true
+}
