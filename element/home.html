@@ -13,6 +13,7 @@
     .checking { background: #ff9800; }
     .server-name { font-weight: 600; }
     .server-url { color: #666; font-size: 0.85rem; }
+    .self { border-left: 3px solid #4caf50; }
   </style>
 </head>
 <body>
@@ -28,34 +29,70 @@
       }
     }
 
+    async function fetchJson(url) {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      return resp.json();
+    }
+
+    function addServerNode(container, server, isSelf) {
+      const div = document.createElement('div');
+      div.className = 'server' + (isSelf ? ' self' : '');
+      const id = 'status-' + server.name.replace(/\W/g, '-');
+      div.innerHTML = `
+        <div class="status checking" id="${id}"></div>
+        <div>
+          <div class="server-name">${server.name}${isSelf ? ' (you)' : ''}</div>
+          <div class="server-url">${server.url}</div>
+        </div>
+      `;
+      container.appendChild(div);
+
+      checkServer(server.url).then(online => {
+        const dot = document.getElementById(id);
+        dot.className = 'status ' + (online ? 'online' : 'offline');
+      });
+    }
+
     async function loadServers() {
       const container = document.getElementById('servers');
-      let servers;
+
+      // Load self
+      let self;
       try {
-        const resp = await fetch('servers.json');
-        const data = await resp.json();
-        servers = data.servers;
+        self = await fetchJson('server.json');
+        addServerNode(container, self, true);
       } catch {
-        container.textContent = 'Failed to load server list.';
+        container.textContent = 'Failed to load server.json.';
         return;
       }
 
-      for (const server of servers) {
-        const div = document.createElement('div');
-        div.className = 'server';
-        div.innerHTML = `
-          <div class="status checking" id="status-${server.name}"></div>
-          <div>
-            <div class="server-name">${server.name}</div>
-            <div class="server-url">${server.url}</div>
-          </div>
-        `;
-        container.appendChild(div);
+      // Load peers
+      let peers;
+      try {
+        const data = await fetchJson('peers.json');
+        peers = data.peers || [];
+      } catch {
+        return;
+      }
 
-        checkServer(server.url).then(online => {
-          const dot = document.getElementById('status-' + server.name);
-          dot.className = 'status ' + (online ? 'online' : 'offline');
-        });
+      // Fetch each peer's server.json
+      for (const peerUrl of peers) {
+        try {
+          const peer = await fetchJson(peerUrl);
+          addServerNode(container, peer, false);
+        } catch {
+          // Show unreachable peer
+          const div = document.createElement('div');
+          div.className = 'server';
+          div.innerHTML = `
+            <div class="status offline"></div>
+            <div>
+              <div class="server-name">Unknown</div>
+              <div class="server-url">${peerUrl} (unreachable)</div>
+            </div>
+          `;
+          container.appendChild(div);
+        }
       }
     }
 

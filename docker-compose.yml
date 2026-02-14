@@ -19,3 +19,11 @@ services:
     ports:
       - "8080:80"
     restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    command: tunnel --no-autoupdate --url http://synapse:8008
+    depends_on:
+      - synapse
+    restart: unless-stopped
