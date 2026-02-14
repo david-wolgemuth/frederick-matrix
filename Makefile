@@ -45,9 +45,8 @@ admin-user: up ## Create admin user (starts server if needed)
 	docker compose exec synapse register_new_matrix_user \
 		-c /data/homeserver.yaml -a -u admin -p admin http://localhost:8008
 
-gh-setup: ## Enable GitHub Pages on the repo
-	gh api -X POST "repos/$$(gh repo view --json nameWithOwner -q .nameWithOwner)/pages" \
-		--input - <<< '{"source":{"branch":"main","path":"/"}}'
+gh-setup: ## Enable GitHub Pages (workflow-based deployment)
+	echo '{"build_type":"workflow"}' | gh api -X POST "repos/$$(gh repo view --json nameWithOwner -q .nameWithOwner)/pages" --input -
 	@echo "GitHub Pages enabled."
 
 start: ## Start services and publish tunnel URL to GitHub Pages

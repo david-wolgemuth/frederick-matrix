@@ -4,95 +4,152 @@
   <meta charset="utf-8">
   <title>Matrix Mesh Status</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
-    h1 { font-size: 1.4rem; }
-    .server { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; margin: 0.5rem 0; border-radius: 6px; background: #f5f5f5; }
-    .status { width: 12px; height: 12px; border-radius: 50%; }
-    .online { background: #4caf50; }
-    .offline { background: #ccc; }
-    .checking { background: #ff9800; }
-    .server-name { font-weight: 600; }
-    .server-url { color: #666; font-size: 0.85rem; }
-    .self { border-left: 3px solid #4caf50; }
+    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; color: #333; }
+    h1 { font-size: 1.4rem; margin-bottom: 0.5rem; }
+    .subtitle { color: #888; font-size: 0.85rem; margin-bottom: 1.5rem; }
+    .node { padding: 0.75rem; margin: 0.5rem 0; border-radius: 6px; background: #f5f5f5; border-left: 3px solid #ccc; }
+    .node.online { border-left-color: #4caf50; }
+    .node.offline { border-left-color: #e53935; }
+    .node.checking { border-left-color: #ff9800; }
+    .node.self { background: #f0f7f0; }
+    .node-header { display: flex; align-items: center; gap: 0.5rem; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .dot.online { background: #4caf50; }
+    .dot.offline { background: #e53935; }
+    .dot.checking { background: #ff9800; }
+    .node-name { font-weight: 600; }
+    .node-tag { font-size: 0.75rem; color: #888; }
+    .node-detail { font-size: 0.8rem; color: #666; margin-top: 0.25rem; font-family: monospace; }
+    .node-detail a { color: #666; }
+    .log { font-size: 0.75rem; color: #999; margin-top: 0.15rem; font-family: monospace; }
+    .error { color: #e53935; }
+    .section { margin-top: 1.5rem; }
+    .section-label { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
   </style>
 </head>
 <body>
   <h1>Mesh Nodes</h1>
-  <div id="servers"></div>
+  <div class="subtitle" id="timestamp"></div>
+  <div id="self-section"></div>
+  <div id="peers-section"></div>
   <script>
+    function ts() {
+      return new Date().toLocaleTimeString();
+    }
+
+    function addLog(container, msg, isError) {
+      const div = document.createElement('div');
+      div.className = 'log' + (isError ? ' error' : '');
+      div.textContent = ts() + ' ' + msg;
+      container.appendChild(div);
+    }
+
     async function checkServer(url) {
+      const endpoint = url + '/_matrix/client/versions';
       try {
-        const resp = await fetch(url + '/_matrix/client/versions', { mode: 'cors', signal: AbortSignal.timeout(5000) });
-        return resp.ok;
-      } catch {
-        return false;
+        const resp = await fetch(endpoint, { mode: 'cors', signal: AbortSignal.timeout(5000) });
+        if (resp.ok) {
+          const data = await resp.json();
+          const versions = data.versions || [];
+          return { online: true, detail: 'OK — ' + versions.length + ' spec versions' };
+        }
+        return { online: false, detail: 'HTTP ' + resp.status };
+      } catch (e) {
+        return { online: false, detail: e.message || 'fetch failed' };
       }
     }
 
-    async function fetchJson(url) {
-      const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
-      return resp.json();
+    function renderNode(container, name, url, tag, result) {
+      const status = result ? (result.online ? 'online' : 'offline') : 'checking';
+      const div = document.createElement('div');
+      div.className = 'node ' + status + (tag === 'you' ? ' self' : '');
+      div.innerHTML = `
+        <div class="node-header">
+          <span class="dot ${status}"></span>
+          <span class="node-name">${name}</span>
+          ${tag ? '<span class="node-tag">(' + tag + ')</span>' : ''}
+        </div>
+        <div class="node-detail"><a href="${url}" target="_blank">${url}</a></div>
+      `;
+      if (result) {
+        addLog(div, result.online ? result.detail : 'FAILED: ' + result.detail, !result.online);
+      } else {
+        addLog(div, 'checking ' + url + '/_matrix/client/versions ...', false);
+      }
+      container.appendChild(div);
+      return div;
     }
 
-    function addServerNode(container, server, isSelf) {
-      const div = document.createElement('div');
-      div.className = 'server' + (isSelf ? ' self' : '');
-      const id = 'status-' + server.name.replace(/\W/g, '-');
-      div.innerHTML = `
-        <div class="status checking" id="${id}"></div>
-        <div>
-          <div class="server-name">${server.name}${isSelf ? ' (you)' : ''}</div>
-          <div class="server-url">${server.url}</div>
-        </div>
-      `;
-      container.appendChild(div);
-
-      checkServer(server.url).then(online => {
-        const dot = document.getElementById(id);
-        dot.className = 'status ' + (online ? 'online' : 'offline');
-      });
+    async function loadNode(container, name, url, tag) {
+      const div = renderNode(container, name, url, tag, null);
+      const result = await checkServer(url);
+      div.remove();
+      renderNode(container, name, url, tag, result);
     }
 
     async function loadServers() {
-      const container = document.getElementById('servers');
+      document.getElementById('timestamp').textContent = 'Checked at ' + new Date().toLocaleString();
+
+      const selfSection = document.getElementById('self-section');
+      const peersSection = document.getElementById('peers-section');
 
       // Load self
       let self;
       try {
-        self = await fetchJson('server.json');
-        addServerNode(container, self, true);
-      } catch {
-        container.textContent = 'Failed to load server.json.';
+        const resp = await fetch('server.json', { signal: AbortSignal.timeout(5000) });
+        self = await resp.json();
+      } catch (e) {
+        selfSection.innerHTML = '<div class="node offline"><div class="node-header"><span class="dot offline"></span><span class="node-name">This node</span></div></div>';
+        addLog(selfSection.querySelector('.node'), 'Failed to load server.json: ' + (e.message || 'unknown error'), true);
         return;
       }
+
+      await loadNode(selfSection, self.name, self.url, 'you');
 
       // Load peers
       let peers;
       try {
-        const data = await fetchJson('peers.json');
+        const resp = await fetch('peers.json', { signal: AbortSignal.timeout(5000) });
+        const data = await resp.json();
         peers = data.peers || [];
-      } catch {
+      } catch (e) {
+        const div = document.createElement('div');
+        div.className = 'log error';
+        div.textContent = ts() + ' Failed to load peers.json: ' + (e.message || 'unknown error');
+        peersSection.appendChild(div);
         return;
       }
 
-      // Fetch each peer's server.json
+      if (peers.length === 0) {
+        const div = document.createElement('div');
+        div.className = 'log';
+        div.textContent = 'No peers configured in peers.json';
+        peersSection.appendChild(div);
+        return;
+      }
+
+      const label = document.createElement('div');
+      label.className = 'section-label';
+      label.textContent = 'Peers';
+      peersSection.appendChild(label);
+
       for (const peerUrl of peers) {
+        let peer;
         try {
-          const peer = await fetchJson(peerUrl);
-          addServerNode(container, peer, false);
-        } catch {
-          // Show unreachable peer
+          const resp = await fetch(peerUrl, { signal: AbortSignal.timeout(5000) });
+          peer = await resp.json();
+        } catch (e) {
           const div = document.createElement('div');
-          div.className = 'server';
+          div.className = 'node offline';
           div.innerHTML = `
-            <div class="status offline"></div>
-            <div>
-              <div class="server-name">Unknown</div>
-              <div class="server-url">${peerUrl} (unreachable)</div>
-            </div>
+            <div class="node-header"><span class="dot offline"></span><span class="node-name">Unknown</span></div>
+            <div class="node-detail"><a href="${peerUrl}" target="_blank">${peerUrl}</a></div>
           `;
-          container.appendChild(div);
+          addLog(div, 'Failed to fetch server.json: ' + (e.message || 'unknown error'), true);
+          peersSection.appendChild(div);
+          continue;
         }
+        await loadNode(peersSection, peer.name, peer.url, null);
       }
     }
 

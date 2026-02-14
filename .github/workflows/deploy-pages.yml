@@ -1,0 +1,52 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  ELEMENT_VERSION: v1.12.10
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Element Web
+        run: |
+          mkdir -p build
+          curl -L https://github.com/element-hq/element-web/releases/download/${{ env.ELEMENT_VERSION }}/element-${{ env.ELEMENT_VERSION }}.tar.gz \
+            | tar xz --strip-components=1 -C build
+
+      - name: Copy configs into build
+        run: cp element-config/* build/
+
+      - name: Copy discovery files into build
+        run: |
+          cp server.json build/
+          cp peers.json build/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
