@@ -41,9 +41,11 @@ Peers discover each other through `peers.json`, which lists URLs to each peer's 
 ## Day-to-Day
 
 ```bash
-make start     # start + publish tunnel URL (stays in foreground)
-make up        # start without publishing
+make up        # start services, publish tunnel URL to GitHub
 make down      # stop
+make tunnel    # restart tunnel for a new URL, publish
+make tunnel-url # print current tunnel URL
+make publish   # re-publish current URL to GitHub
 make logs      # follow logs
 make status    # check if services are running
 ```

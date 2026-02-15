@@ -25,11 +25,14 @@
     .error { color: #e53935; }
     .section { margin-top: 1.5rem; }
     .section-label { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+    .open-element { display: inline-block; margin-top: 1rem; padding: 0.5rem 1rem; background: #0dbd8b; color: #fff; text-decoration: none; border-radius: 4px; font-size: 0.85rem; }
+    .open-element:hover { background: #0aa87c; }
   </style>
 </head>
 <body>
   <h1>Mesh Nodes</h1>
   <div class="subtitle" id="timestamp"></div>
+  <div id="element-link"></div>
   <div id="self-section"></div>
   <div id="peers-section"></div>
   <script>
@@ -105,6 +108,7 @@
       }
 
       await loadNode(selfSection, self.name, self.url, 'you');
+      showElementLink(self.url);
 
       // Load peers
       let peers;
@@ -150,6 +154,29 @@
           continue;
         }
         await loadNode(peersSection, peer.name, peer.url, null);
+      }
+    }
+
+    // Show "Open Element" link when viewing standalone (not inside Element iframe)
+    function showElementLink(serverUrl) {
+      const isInIframe = window.self !== window.top;
+      if (!isInIframe) {
+        const container = document.getElementById('element-link');
+        // Link to Element at the same origin (Pages deploys Element at root)
+        const elementBase = window.location.href.replace(/\/[^/]*$/, '/');
+        const link = document.createElement('a');
+        link.className = 'open-element';
+        link.href = elementBase + '#/login';
+        link.textContent = 'Open Element';
+        container.appendChild(link);
+
+        if (serverUrl) {
+          const note = document.createElement('div');
+          note.className = 'log';
+          note.style.marginTop = '0.25rem';
+          note.textContent = 'Homeserver: ' + serverUrl;
+          container.appendChild(note);
+        }
       }
     }
 

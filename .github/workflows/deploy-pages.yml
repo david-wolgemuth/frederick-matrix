@@ -39,6 +39,16 @@ jobs:
           cp server.json build/
           cp peers.json build/
 
+      - name: Generate config.json with current tunnel URL
+        run: |
+          TUNNEL_URL=$(jq -r .url server.json)
+          echo "Tunnel URL from server.json: $TUNNEL_URL"
+          jq --arg url "$TUNNEL_URL" \
+            '.default_server_config["m.homeserver"].base_url = $url | .default_server_config["m.homeserver"].server_name = $url' \
+            element-config/config.json > build/config.json
+          echo "Generated config.json:"
+          cat build/config.json
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 

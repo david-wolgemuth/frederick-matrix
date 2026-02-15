@@ -16,8 +16,6 @@ services:
     container_name: element
     volumes:
       - ./element:/usr/share/nginx/html:ro
-      - ./server.json:/usr/share/nginx/html/server.json:ro
-      - ./peers.json:/usr/share/nginx/html/peers.json:ro
     ports:
       - "8080:80"
     restart: unless-stopped
