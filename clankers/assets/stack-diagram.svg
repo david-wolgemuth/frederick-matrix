@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="540" viewBox="0 0 720 540" role="img" aria-label="Most compelling clankers stack diagram">
+  <rect x="12" y="12" width="696" height="516" rx="18" fill="#1a1f16" stroke="#8cb369" stroke-width="4"/>
+
+  <text x="360" y="52" text-anchor="middle" font-family="monospace" font-size="22" fill="#e4a853">MOST COMPELLING CLANKERS</text>
+  <text x="360" y="78" text-anchor="middle" font-family="monospace" font-size="14" fill="#a89e8a">core utility + village vibe</text>
+
+  <!-- rows -->
+  <g font-family="monospace" font-size="14" fill="#e8e0cc">
+    <rect x="36" y="108" width="648" height="48" rx="10" fill="#1f2b22" stroke="#8cb369" stroke-width="2"/>
+    <text x="54" y="138">🦉 Boundary Owl</text>
+    <text x="300" y="138" fill="#a89e8a">moderation + safety</text>
+
+    <rect x="36" y="168" width="648" height="48" rx="10" fill="#1f2b22" stroke="#8cb369" stroke-width="2"/>
+    <text x="54" y="198">📸 Shutterbug</text>
+    <text x="300" y="198" fill="#a89e8a">event → image delight</text>
+
+    <rect x="36" y="228" width="648" height="48" rx="10" fill="#1f2b22" stroke="#8cb369" stroke-width="2"/>
+    <text x="54" y="258">🍄 Mushroom Network</text>
+    <text x="300" y="258" fill="#a89e8a">shared state for bots</text>
+
+    <rect x="36" y="288" width="648" height="48" rx="10" fill="#1f2b22" stroke="#8cb369" stroke-width="2"/>
+    <text x="54" y="318">🦊 Matchmaker</text>
+    <text x="300" y="318" fill="#a89e8a">connect related threads</text>
+
+    <rect x="36" y="348" width="648" height="48" rx="10" fill="#1f2b22" stroke="#8cb369" stroke-width="2"/>
+    <text x="54" y="378">🪶🔔 Bump Bird</text>
+    <text x="300" y="378" fill="#a89e8a">revive orphan questions</text>
+
+    <rect x="36" y="408" width="648" height="48" rx="10" fill="#1f2b22" stroke="#8cb369" stroke-width="2"/>
+    <text x="54" y="438">🐕🔗 Link Dog</text>
+    <text x="300" y="438" fill="#a89e8a">fetch saved links</text>
+
+    <rect x="36" y="468" width="318" height="48" rx="10" fill="#1f2b22" stroke="#8cb369" stroke-width="2"/>
+    <text x="54" y="498">🦉 Uptime Owl</text>
+    <text x="188" y="498" fill="#a89e8a">infra status</text>
+
+    <rect x="366" y="468" width="318" height="48" rx="10" fill="#1f2b22" stroke="#8cb369" stroke-width="2"/>
+    <text x="384" y="498">✨ Firefly</text>
+    <text x="500" y="498" fill="#a89e8a">ambient presence</text>
+  </g>
+</svg>
