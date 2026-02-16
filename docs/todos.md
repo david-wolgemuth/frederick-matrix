@@ -1,6 +1,6 @@
 # frederick-matrix — TODOs
 
-*Last updated: 2026-02-15*
+*Last updated: 2026-02-16*
 
 ### 🏷️ Status Legend
 - 🔥 **HIGH PRIORITY** — Critical for user experience or stability
@@ -13,8 +13,8 @@
 
 ## 📊 Summary
 
-**Total Items:** 101 tasks (25 main tasks + 76 sub-tasks) across 7 categories
-**Completed:** 3 ✅ | **In Progress:** 0 ⏳ | **Pending:** 98 📋
+**Total Items:** 109 tasks (26 main tasks + 83 sub-tasks) across 7 categories
+**Completed:** 3 ✅ | **In Progress:** 0 ⏳ | **Pending:** 106 📋
 **High Priority:** 7 items 🔥 (stable DNS, tunnel reliability, onboarding docs, backups, tests, server_name fix)
 **Blockers:** 1 🚫 (federation blocked by server_name issue)
 
@@ -26,7 +26,7 @@
 - 🌐 **Mesh/Federation:** 0/3 complete (0%)
 - 🛠️ **Developer Experience:** 0/3 complete (0%)
 - 📚 **Documentation:** 1/2 complete (50%) █████░░░░░
-- ✨ **Nice to Have:** 0/5 complete (0%)
+- ✨ **Nice to Have:** 0/6 complete (0%)
 
 ### 🎯 Next Actions (Recommended Order)
 1. 🦆 **Set up DuckDNS + Named Tunnel** — solves both stability and network compatibility issues
@@ -164,3 +164,11 @@
   - [ ] 📋 Responsive CSS improvements
   - [ ] 📋 Touch-friendly buttons
   - [ ] 📋 Progressive Web App (PWA) manifest
+- [ ] 📋 🤖 **AWS Bedrock setup** — Basic Python/CLI integration with Amazon Bedrock for AI capabilities
+  - [ ] 📋 One-time AWS setup: enable Bedrock in a supported region (e.g. `us-east-1`), configure IAM permissions (`bedrock:InvokeModel`, `bedrock:ListFoundationModels`)
+  - [ ] 📋 Install and configure AWS CLI v2 (`aws configure` with access key, secret, region)
+  - [ ] 📋 Install `boto3` (`pip install boto3`)
+  - [ ] 📋 Enable desired foundation models in Bedrock console (e.g. `anthropic.claude-3-sonnet-20240229-v1:0`)
+  - [ ] 📋 Test CLI invocation: `aws bedrock-runtime invoke-model` with a sample `body.json`
+  - [ ] 📋 Create basic Python script (`bedrock_hello.py`) using `boto3` `bedrock-runtime` client
+  - [ ] 📋 Verify end-to-end: credentials, model access, and response parsing
