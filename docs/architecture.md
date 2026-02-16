@@ -35,9 +35,10 @@ Each mesh member runs three Docker services locally and publishes their ephemera
 - Port 8080
 
 ### Cloudflare Tunnel (`cloudflared`)
-- Ephemeral "quick tunnel" — no account needed
 - Proxies internet traffic to Synapse on port 8008
-- URL changes every restart (e.g., `https://random-words.trycloudflare.com`)
+- **Quick tunnel** (default): no account needed, ephemeral URL changes every restart
+- **Named tunnel** (recommended): free Cloudflare account, stable permanent URL, HTTP/2 fallback on restrictive networks
+- See [Named Tunnel Setup](named-tunnel.md) and [Networking Guide](networking.md)
 
 ## Peer Discovery
 
@@ -97,6 +98,18 @@ The workflow (`deploy-pages.yml`) builds a site containing:
 
 Pages must use **workflow-based deployment** (`make gh-setup`), not legacy "deploy from branch".
 
+### Live URLs (per member)
+
+| URL | Content |
+|-----|---------|
+| `https://<user>.github.io/frederick-matrix/` | Element Web app (login/chat) |
+| `https://<user>.github.io/frederick-matrix/home.html` | Mesh status page (node health) |
+| `https://<user>.github.io/frederick-matrix/server.json` | This node's name + current tunnel URL |
+| `https://<user>.github.io/frederick-matrix/peers.json` | URLs to peer `server.json` files |
+| `https://<user>.github.io/frederick-matrix/config.json` | Element config (generated at deploy, points to tunnel) |
+
+The hosted Element at the Pages root is pre-configured to connect to the node's tunnel URL — no manual homeserver entry needed. The `home.html` status page is embedded in Element's home tab and also accessible standalone (with an "Open Element" link when viewed directly).
+
 ## Config Files
 
 | File | Location | Purpose |
@@ -109,8 +122,9 @@ Pages must use **workflow-based deployment** (`make gh-setup`), not legacy "depl
 ## Data Flow: User Registration
 
 1. Admin creates invite token: `make create-token` (calls Synapse Admin API)
-2. Admin shares token with friend
-3. Friend opens hosted Element on GitHub Pages (or any Element client)
-4. Friend sets homeserver to the tunnel URL from `server.json`
-5. Friend registers with the invite token
-6. Auto-join rooms: `#tech-frederick:localhost`, `#general:localhost`, `#random:localhost`
+2. Admin shares token + their GitHub Pages link with friend
+3. Friend opens hosted Element on GitHub Pages (already configured with the right homeserver)
+4. Friend registers with the invite token
+5. Auto-join rooms: `#tech-frederick:localhost`, `#general:localhost`, `#random:localhost`
+
+Alternatively, friends can use any Element client and manually set the homeserver to the tunnel URL.

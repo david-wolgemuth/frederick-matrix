@@ -12,19 +12,39 @@ make help               Show all commands
 make up                 Start all services, wait for tunnel, publish URL to GitHub
 make down               Stop everything
 make start              Start + long-running tunnel URL watcher (foreground)
+make tunnel             Force-recreate cloudflared for a new URL, publish to GitHub
 make logs               Follow container logs
-make status             Check if Synapse and Element are reachable
 ```
+
+### Status & Diagnostics
+
+```
+make status             Full verbose status (docker, localhost, tunnel, Pages)
+make status-quick       Summary status (one line per check)
+make status-docker      Docker containers and images only
+make status-localhost   Synapse + Element localhost checks only
+make status-tunnel      Tunnel URL, DNS resolution, and liveness only
+make status-pages       GitHub Pages endpoints only
+```
+
+`make status` runs `scripts/status.py` which checks:
+
+| Section | What it tests |
+|---------|--------------|
+| Docker | `docker compose ps`, images, recent cloudflared logs |
+| Localhost | Synapse API (`localhost:8008`), Element (`localhost:8080`), Element `config.json` |
+| Tunnel | Extracts URL from logs, DNS resolution, hits `/_matrix/client/versions` via tunnel |
+| Pages | Element, `config.json`, `server.json`, `peers.json`, `home.html` on `<you>.github.io` |
 
 ### Tunnel Management
 
 ```
-make tunnel             Restart cloudflared for a new URL, publish to GitHub
-make tunnel-url         Print the current tunnel URL (no restart)
+make tunnel             Force-recreate cloudflared for a new URL, publish to GitHub
+make tunnel-url         Show current tunnel URL and verify it's live (DNS + HTTP)
 make publish            Push current tunnel URL to server.json on GitHub
 ```
 
-The tunnel URL is ephemeral — it changes every time cloudflared restarts. `make publish` pushes the new URL to GitHub, which triggers a Pages rebuild so peers and the hosted Element always have the latest URL.
+`make tunnel` uses `docker compose up -d --force-recreate cloudflared` (not `restart`) to ensure a brand new container and a fresh quick tunnel URL. A simple `restart` reuses the same container and may reconnect to a dead DNS entry.
 
 ### Token Management
 
@@ -74,7 +94,7 @@ This starts all services, waits for the new tunnel URL, and publishes it.
 make tunnel
 ```
 
-Restarts only cloudflared, waits for the new URL, publishes it.
+Force-recreates the cloudflared container to get a fresh URL, then publishes it.
 
 ### "My tunnel URL is stale on GitHub Pages"
 
@@ -83,6 +103,14 @@ make publish
 ```
 
 Re-reads the current tunnel URL from cloudflared logs and pushes to GitHub.
+
+### "I want to check if everything is working"
+
+```bash
+make status          # full verbose output
+make status-quick    # one-line-per-check summary
+make status-tunnel   # just check the tunnel
+```
 
 ### "I want to invite someone"
 
@@ -93,32 +121,43 @@ make create-token
 # Or for an unlimited token
 python3 mesh-admin/mesh_admin.py create-token --uses 0
 
-# Share:
+# Share with them:
 # 1. The token
-# 2. Your tunnel URL (make tunnel-url) or GitHub Pages link
+# 2. Your GitHub Pages link: https://<you>.github.io/frederick-matrix/
+#    (Element is pre-configured with your homeserver — they just register)
 ```
 
 ### "A peer can't connect to me"
 
-1. Check your tunnel: `make tunnel-url`
-2. Check if it's reachable: `curl -s <tunnel-url>/_matrix/client/versions`
-3. If not, restart the tunnel: `make tunnel`
+1. Check full status: `make status`
+2. Check your tunnel specifically: `make status-tunnel`
+3. If DNS fails, recreate the tunnel: `make tunnel`
 4. Check your network — some restrictive networks (e.g., coffee shop WiFi with client isolation) block cloudflared's outbound connections. A phone hotspot usually works.
 
 ## Troubleshooting
 
 ### Cloudflared won't connect
 - Check logs: `docker compose logs cloudflared`
-- Some networks block the QUIC/HTTP2 connections cloudflared needs
+- Look for "control stream encountered a failure" — means QUIC (UDP) is blocked
+- Some networks block the QUIC connections cloudflared needs
 - Try a different network (phone hotspot works reliably)
+- Consider upgrading to a [named tunnel](named-tunnel.md) which falls back to HTTP/2
+
+### Tunnel URL is stale (DNS doesn't resolve)
+- Run `make status-tunnel` — it checks DNS resolution and HTTP liveness
+- `docker compose restart` reuses the same container — cloudflared reconnects but doesn't always get a new URL
+- `make tunnel` does `--force-recreate` which destroys and recreates the container, forcing a new quick tunnel registration
+- Debug: `docker compose logs cloudflared --tail 20` — look for "Your quick Tunnel has been created" with a URL. If you only see "Registered tunnel connection" without a URL line, the container needs recreating
 
 ### Element shows "config.json not found" or wrong homeserver
 - Run `make element-configure` to re-copy configs into `element/`
 - For the hosted (Pages) Element, check that `make publish` ran after the last tunnel restart
+- Run `make status-pages` to see what `config.json` is deployed with
 
 ### GitHub Pages shows README instead of Element
 - Pages build type is `legacy` instead of `workflow`
 - Run `make gh-setup` to switch, then push to trigger the workflow
+- Verify with `make status-pages`
 
 ### Docker permission denied
 - Add yourself to the docker group: `sudo usermod -aG docker $USER`

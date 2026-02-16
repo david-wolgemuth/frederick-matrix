@@ -88,7 +88,7 @@ python3 mesh-admin/mesh_admin.py revoke-token <token>
 ├── Makefile                  # setup and management commands
 ├── start.sh                  # start services + publish/watch tunnel URL
 ├── docker-compose.yml        # Synapse + nginx + cloudflared
-├── server.json               # this node's name + tunnel URL (updated by start.sh)
+├── server.json               # this node's name + tunnel URL (updated by make publish)
 ├── peers.json                # URLs to peers' server.json files
 ├── data/                     # Synapse data (gitignored)
 ├── element/                  # Element Web assets (gitignored, downloaded at setup)
@@ -96,6 +96,15 @@ python3 mesh-admin/mesh_admin.py revoke-token <token>
 │   ├── config.json           # local dev config (localhost)
 │   ├── config.prod.json      # production config template
 │   └── home.html             # mesh status landing page
-└── mesh-admin/
-    └── mesh_admin.py         # registration token CLI
+├── scripts/
+│   └── status.py             # status checker (make status)
+├── mesh-admin/
+│   └── mesh_admin.py         # registration token CLI
+└── docs/                     # documentation
+    ├── quickstart.md          # step-by-step getting started
+    ├── architecture.md        # system design and data flow
+    ├── operations.md          # day-to-day commands and troubleshooting
+    ├── setup.md               # detailed setup guide
+    ├── named-tunnel.md        # named Cloudflare tunnel upgrade
+    └── networking.md          # port forwarding and network guides
 ```

@@ -1,6 +1,6 @@
 ELEMENT_VERSION := v1.12.10
 
-.PHONY: help setup element-download element-configure synapse-generate synapse-configure admin-user gh-setup start up down logs status tunnel tunnel-url publish create-token list-tokens
+.PHONY: help setup element-download element-configure synapse-generate synapse-configure admin-user gh-setup start up down logs status status-quick status-docker status-localhost status-tunnel status-pages tunnel tunnel-url publish create-token list-tokens
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
@@ -77,8 +77,8 @@ up: ## Start services, wait for tunnel, publish URL to GitHub
 down: ## Stop everything
 	docker compose down
 
-tunnel: ## Restart tunnel, get new URL, and publish to GitHub
-	docker compose restart cloudflared
+tunnel: ## Recreate tunnel for new URL and publish to GitHub
+	docker compose up -d --force-recreate cloudflared
 	echo "Waiting for new tunnel URL..."
 	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do \
 		URL=$$(docker compose logs cloudflared 2>&1 | grep -oP 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' | tail -1); \
@@ -88,8 +88,13 @@ tunnel: ## Restart tunnel, get new URL, and publish to GitHub
 	done
 	$(MAKE) publish
 
-tunnel-url: ## Show current tunnel URL
-	docker compose logs cloudflared 2>&1 | grep -oP 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' | tail -1 || echo "No tunnel URL found"
+tunnel-url: ## Show current tunnel URL and check if live
+	URL=$$(docker compose logs cloudflared 2>&1 | grep -oP 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' | tail -1); \
+	if [ -z "$$URL" ]; then echo "No tunnel URL found in logs"; exit 1; fi; \
+	echo "Tunnel URL: $$URL"; \
+	echo "Checking $$URL/_matrix/client/versions ..."; \
+	curl -v --max-time 5 "$$URL/_matrix/client/versions" 2>&1; \
+	echo ""
 
 publish: ## Push current tunnel URL to server.json on GitHub
 	set -e; \
@@ -127,13 +132,23 @@ publish: ## Push current tunnel URL to server.json on GitHub
 logs: ## Follow container logs
 	docker compose logs -f
 
-status: ## Check server status
-	curl -sf http://localhost:8008/_matrix/client/versions > /dev/null 2>&1 \
-		&& echo "Synapse:  up (http://localhost:8008)" \
-		|| echo "Synapse:  down"
-	curl -sf http://localhost:8080 > /dev/null 2>&1 \
-		&& echo "Element:  up (http://localhost:8080)" \
-		|| echo "Element:  down"
+status: ## Full status check: docker, localhost, tunnel, GitHub Pages
+	python3 scripts/status.py
+
+status-quick: ## Quick status summary
+	python3 scripts/status.py -q
+
+status-docker: ## Status: docker only
+	python3 scripts/status.py docker
+
+status-localhost: ## Status: localhost only
+	python3 scripts/status.py localhost
+
+status-tunnel: ## Status: tunnel only
+	python3 scripts/status.py tunnel
+
+status-pages: ## Status: GitHub Pages only
+	python3 scripts/status.py pages
 
 create-token: ## Create a registration invite token
 	python3 mesh-admin/mesh_admin.py create-token --expires 7d

@@ -54,7 +54,10 @@ After `make up`:
 - **Element (local)**: http://localhost:8080
 - **Synapse API**: http://localhost:8008
 - **Tunnel**: printed in output (random `trycloudflare.com` URL)
-- **GitHub Pages**: `https://<you>.github.io/frederick-matrix/`
+- **GitHub Pages**:
+  - Element Web: `https://<you>.github.io/frederick-matrix/`
+  - Mesh status: `https://<you>.github.io/frederick-matrix/home.html`
+  - Server info: `https://<you>.github.io/frederick-matrix/server.json`
 
 ## Configure mesh-admin
 
