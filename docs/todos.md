@@ -1,6 +1,6 @@
 # frederick-matrix — TODOs
 
-*Last updated: 2026-02-15*
+*Last updated: 2026-02-16*
 
 ### 🏷️ Status Legend
 - 🔥 **HIGH PRIORITY** — Critical for user experience or stability
@@ -8,43 +8,48 @@
 - 🚫 **BLOCKED** — Cannot proceed until dependency resolved
 - ⚠️ **BREAKING CHANGE** — Requires migration or will disrupt existing users
 - ✅ **FIXED** — Completed and deployed
+- 🙋 **CLAIMED** — Currently being worked on
 - 📋 **PENDING** — Not yet started
 - 🎯 **RECOMMENDED** — Best approach among alternatives
+- 📅 **DATED** — Item includes timestamp for tracking
 
 ## 📊 Summary
 
-**Total Items:** 101 tasks (25 main tasks + 76 sub-tasks) across 7 categories
-**Completed:** 3 ✅ | **In Progress:** 0 ⏳ | **Pending:** 98 📋
+**Total Items:** 101 tasks (25 main tasks + 76 sub-tasks) across 8 categories
+**Completed:** 3 ✅ (3%) | **Claimed:** 0 🙋 (0%) | **Pending:** 98 📋 (97%)
 **High Priority:** 7 items 🔥 (stable DNS, tunnel reliability, onboarding docs, backups, tests, server_name fix)
 **Blockers:** 1 🚫 (federation blocked by server_name issue)
+**Breaking Changes:** 1 ⚠️ (server_name configuration change)
 
 ### 📈 Progress by Category
-- 🚨 **Critical/Blocking:** 0/2 complete (0%)
-- 🐛 **Bugs:** 2/3 complete (67%) ████████░░
-- 🏗️ **Infrastructure:** 0/6 complete (0%)
-- 🌐 **GitHub Pages:** 0/4 complete (0%)
-- 🌐 **Mesh/Federation:** 0/3 complete (0%)
-- 🛠️ **Developer Experience:** 0/3 complete (0%)
-- 📚 **Documentation:** 1/2 complete (50%) █████░░░░░
-- ✨ **Nice to Have:** 0/5 complete (0%)
+- 🚨 **Critical/Blocking:** 0/2 complete (0%) ░░░░░░░░░░ — 2 high priority, 1 blocked
+- 🐛 **Bugs:** 2/3 complete (67%) ████████░░ — 1 pending
+- 🏗️ **Infrastructure:** 0/6 complete (0%) ░░░░░░░░░░ — 2 high priority
+- 🌐 **GitHub Pages:** 0/4 complete (0%) ░░░░░░░░░░ — all low priority
+- 🌐 **Mesh/Federation:** 0/3 complete (0%) ░░░░░░░░░░ — 1 high priority, 1 blocked, 1 breaking
+- 🛠️ **Developer Experience:** 0/3 complete (0%) ░░░░░░░░░░ — 1 high priority
+- 📚 **Documentation:** 1/2 complete (50%) █████░░░░░ — 1 high priority remaining
+- ✨ **Nice to Have:** 0/5 complete (0%) ░░░░░░░░░░ — 1 high priority (backups!)
 
 ### 🎯 Next Actions (Recommended Order)
-1. 🦆 **Set up DuckDNS + Named Tunnel** — solves both stability and network compatibility issues
-2. 👥 **Create onboarding guide** — improve friend experience
-3. 💾 **Implement backup script** — protect against data loss
-4. 🧪 **Add tests** — prevent regressions as project grows
-5. 🔗 **Fix server_name** — enable true federation
+1. 🔥 🦆 **Set up DuckDNS + Named Tunnel** — solves both stability and network compatibility issues (🚨 Critical)
+2. 🔥 👥 **Create onboarding guide** — improve friend experience (📚 Documentation)
+3. 🔥 💾 **Implement backup script** — protect against data loss (✨ Nice to Have but CRITICAL)
+4. 🔥 🧪 **Add tests** — prevent regressions as project grows (🛠️ Developer Experience)
+5. 🔥 🔗 **Fix server_name** — enable true federation (⚠️ BREAKING CHANGE, 🌐 Mesh/Federation)
+
+💡 **Pro tip:** Start with #1 (DuckDNS + Named Tunnel) as it unblocks several other items and provides immediate stability improvements!
 
 ---
 
 ## 🚨 Critical / Blocking
 
-- [ ] 🔥 **HIGH PRIORITY** | 🔍 **Tunnel is unreliable on restrictive networks** — Cloudflare quick tunnels use QUIC which is blocked on many WiFi networks (coffee shops, etc). Investigate alternatives:
+- [ ] 🔥 **HIGH PRIORITY** | 📅 *Added: 2026-02-15* | 🔍 **Tunnel is unreliable on restrictive networks** — Cloudflare quick tunnels use QUIC which is blocked on many WiFi networks (coffee shops, etc). Investigate alternatives:
   - [ ] 📋 🦆 DuckDNS + port forwarding (stable hostname, no tunnel needed if port 443/8448 open)
   - [ ] 📋 🎯 **DuckDNS + Cloudflare named tunnel** (free tier, stable URL, falls back to HTTP/2) — *Recommended path, see docs/named-tunnel.md* **[RECOMMENDED]**
   - [ ] 📋 🔐 Tailscale / Wireguard as alternative for peer-to-peer connectivity
   - [ ] 📋 🌐 ngrok (supports TCP, less QUIC-dependent)
-- [ ] 🔥 **HIGH PRIORITY** | ⏰ **Tunnel URLs are ephemeral** — every restart gets a new random `trycloudflare.com` domain. Friends' Element clients break until they update homeserver URL. A stable DNS name (DuckDNS, own domain, etc.) would fix this permanently. *Note: Addressed by switching to named tunnel with stable domain.*
+- [ ] 🔥 **HIGH PRIORITY** | 📅 *Added: 2026-02-15* | ⏰ **Tunnel URLs are ephemeral** — every restart gets a new random `trycloudflare.com` domain. Friends' Element clients break until they update homeserver URL. A stable DNS name (DuckDNS, own domain, etc.) would fix this permanently. *Note: Addressed by switching to named tunnel with stable domain.*
 
 ## 🐛 Bugs
 
@@ -92,12 +97,12 @@
 
 ## 🌐 Mesh / Federation
 
-- [ ] 🚫 **BLOCKED** | 🔗 **Federation not tested** — Multiple nodes discovering each other via `peers.json` is set up, but actual Matrix federation between Synapse instances hasn't been verified. **(BLOCKED by server_name issue)** Requires:
+- [ ] 🚫 **BLOCKED** | 📅 *Added: 2026-02-15* | 🔗 **Federation not tested** — Multiple nodes discovering each other via `peers.json` is set up, but actual Matrix federation between Synapse instances hasn't been verified. **(BLOCKED by server_name issue)** Requires:
   - [ ] 📋 🏃 Two running nodes with stable URLs
   - [ ] 🚫 ⚙️ Proper `server_name` config (currently `localhost`, which won't federate)
   - [ ] 📋 🔍 `.well-known` delegation or SRV records
   - [ ] 📋 🧪 Test message sent between federated nodes
-- [ ] 🔥 **HIGH PRIORITY** | ⚠️ **BREAKING CHANGE** | **`server_name: localhost` problem** — Synapse is configured with `server_name: localhost`. User IDs are `@user:localhost`. This works for single-node but blocks federation. Changing server_name later requires a fresh database. Plan migration path.
+- [ ] 🔥 **HIGH PRIORITY** | ⚠️ **BREAKING CHANGE** | 📅 *Added: 2026-02-15* | **`server_name: localhost` problem** — Synapse is configured with `server_name: localhost`. User IDs are `@user:localhost`. This works for single-node but blocks federation. Changing server_name later requires a fresh database. Plan migration path.
   - [ ] 📋 📝 Document migration process
   - [ ] 📋 Create migration script to backup data
   - [ ] 📋 Test server_name change in dev environment
@@ -164,3 +169,33 @@
   - [ ] 📋 Responsive CSS improvements
   - [ ] 📋 Touch-friendly buttons
   - [ ] 📋 Progressive Web App (PWA) manifest
+
+---
+
+## 🔍 Quick Reference
+
+### 🔥 All High Priority Items (7 total)
+1. **Tunnel is unreliable on restrictive networks** (🚨 Critical/Blocking)
+2. **Tunnel URLs are ephemeral** (🚨 Critical/Blocking)
+3. **Stable DNS** (🏗️ Infrastructure)
+4. **Onboarding guide for friends** (📚 Documentation)
+5. **No tests** (🛠️ Developer Experience)
+6. **`server_name: localhost` problem** ⚠️ BREAKING (🌐 Mesh/Federation)
+7. **Backup/restore** (✨ Nice to Have)
+
+### 🚫 Blocked Items (2 total)
+1. **Federation not tested** — blocked by server_name issue
+2. **Proper `server_name` config** — part of federation requirement
+
+### ⚠️ Breaking Changes (1 total)
+1. **`server_name: localhost` problem** — requires database migration
+
+### 📅 Recent Updates
+- **2026-02-16:** Enhanced todos.md with claimed status, better tracking, and quick reference section
+- **2026-02-15:** Added date tracking to high-priority and blocked items
+- **2026-02-14:** Fixed `make publish` SHA detection bug and `make tunnel-url` stale URL reporting
+- **2026-02-14:** Added documentation section to README.md with links to all guides
+
+---
+
+*🐢 Maintained with care by Traci — last updated: 2026-02-16*
