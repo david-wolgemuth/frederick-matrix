@@ -2,6 +2,9 @@
 
 A self-hosted Matrix chat system for a small mesh of friends. Each member runs their own Synapse homeserver with an ephemeral Cloudflare tunnel. Peers discover each other via GitHub Pages.
 
+<img alt="Frederick Home Network - Screenshot 2026-02-16 141724" src="https://github.com/user-attachments/assets/dc51a9be-ba0e-4020-8736-3e10e3a025f1" />
+
+
 ## Prerequisites
 
 - [Docker Engine](https://docs.docker.com/engine/install/) (not Docker Desktop)
