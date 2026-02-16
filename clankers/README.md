@@ -25,55 +25,13 @@ This creates the account with `user_type="bot"` so Synapse knows it's a clanker,
 
 ## How It Works
 
-A clanker is a Matrix bot with a personality. The crow template (`clankers/crow/main.py`) shows the pattern:
+A clanker is a Matrix bot with a personality. The crow template ([`crow/main.py`](crow/main.py)) shows the pattern:
 
-**Config from environment:**
+- **Config from environment** — homeserver URL, credentials, and two channel lists: `CROW_REACT_ROOMS` (where it watches) and `CROW_ALLOWED_ROOMS` (where it speaks).
+- **Identity block** — every clanker has a type tag (`🤖[crow]`) and a voice (the caw string). This is how people recognize it in the room.
+- **Behavior listener** — listens for message events, reacts 👀 in watched rooms, caws only in explicitly allowed rooms. Never broadcasts. If no allowed rooms are set, it stays silent — reactions only.
 
-```python
-HOMESERVER = os.getenv("CROW_HOMESERVER", "http://localhost:8008")
-USERNAME = os.getenv("CROW_USERNAME", "crow")
-PASSWORD = os.getenv("CROW_PASSWORD", "")
-REACT_ROOMS = [r for r in os.getenv("CROW_REACT_ROOMS", "").split(",") if r]
-ALLOWED_ROOMS = [r for r in os.getenv("CROW_ALLOWED_ROOMS", "").split(",") if r]
-```
-
-**Identity — every clanker has a type, a tag, and a voice:**
-
-```python
-CLANKER_TYPE = "crow"
-CLANKER_TAG = f"🤖[{CLANKER_TYPE}]"
-CAW = f"{CLANKER_TAG} 🐦‍⬛🔉🔊"
-```
-
-**Behavior — the crow reacts in watched rooms and caws only where explicitly allowed:**
-
-```python
-@clanker.listener.on_message_event
-async def on_message(room, message):
-    match = botlib.MessageMatch(room, message, clanker)
-    if not match.is_not_from_this_bot():
-        return
-
-    # 👀 react in watched rooms (all rooms if REACT_ROOMS is unset)
-    if not REACT_ROOMS or room.room_id in REACT_ROOMS:
-        await clanker.async_client.room_send(
-            room_id=room.room_id,
-            message_type="m.reaction",
-            content={
-                "m.relates_to": {
-                    "rel_type": "m.annotation",
-                    "event_id": message.event_id,
-                    "key": "👀",
-                }
-            },
-        )
-
-    # caw only in explicitly allowed rooms — never broadcast
-    if room.room_id in ALLOWED_ROOMS:
-        await clanker.api.send_text_message(room.room_id, CAW)
-```
-
-That's the whole creature. Everything else is mutation.
+That's the whole creature. Everything else is mutation. Read `crow/main.py` for the full source.
 
 ## Species
 
