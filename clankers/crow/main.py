@@ -1,8 +1,8 @@
 """
 crow — a clanker that watches rooms and caws back.
 
-  👀  reacts to every message
-  🤖🐦‍⬛🔉🔊  caws in allowed rooms
+  👀  reacts in watched rooms (CROW_REACT_ROOMS, or all rooms if unset)
+  🤖🐦‍⬛🔉🔊  caws only in explicitly allowed rooms (CROW_ALLOWED_ROOMS)
 
 Synapse identifies clankers via user_type="bot" on the account.
 Run `register_clanker()` once to create the account and flag it,
@@ -31,6 +31,7 @@ PASSWORD = os.getenv("CROW_PASSWORD", "")
 SYNAPSE_ADMIN_TOKEN = os.getenv("SYNAPSE_ADMIN_TOKEN", "")
 SERVER_NAME = os.getenv("CROW_SERVER_NAME", "localhost")
 
+REACT_ROOMS = [r for r in os.getenv("CROW_REACT_ROOMS", "").split(",") if r]
 ALLOWED_ROOMS = [r for r in os.getenv("CROW_ALLOWED_ROOMS", "").split(",") if r]
 
 # --- identity ---
@@ -89,21 +90,22 @@ async def on_message(room, message):
     if not match.is_not_from_this_bot():
         return
 
-    # 👀 react to everything
-    await clanker.async_client.room_send(
-        room_id=room.room_id,
-        message_type="m.reaction",
-        content={
-            "m.relates_to": {
-                "rel_type": "m.annotation",
-                "event_id": message.event_id,
-                "key": "👀",
-            }
-        },
-    )
+    # 👀 react in watched rooms (all rooms if REACT_ROOMS is unset)
+    if not REACT_ROOMS or room.room_id in REACT_ROOMS:
+        await clanker.async_client.room_send(
+            room_id=room.room_id,
+            message_type="m.reaction",
+            content={
+                "m.relates_to": {
+                    "rel_type": "m.annotation",
+                    "event_id": message.event_id,
+                    "key": "👀",
+                }
+            },
+        )
 
-    # caw in allowed rooms
-    if not ALLOWED_ROOMS or room.room_id in ALLOWED_ROOMS:
+    # caw only in explicitly allowed rooms — never broadcast
+    if room.room_id in ALLOWED_ROOMS:
         await clanker.api.send_text_message(room.room_id, CAW)
 
 
@@ -115,5 +117,9 @@ if __name__ == "__main__":
     if "--register" in sys.argv:
         register_clanker()
     else:
+        if not REACT_ROOMS:
+            print(f"{CLANKER_TAG} no CROW_REACT_ROOMS set — reacting in all rooms")
+        if not ALLOWED_ROOMS:
+            print(f"{CLANKER_TAG} no CROW_ALLOWED_ROOMS set — reactions only, no caws")
         print(f"{CLANKER_TAG} starting → {HOMESERVER} as {MXID}")
         clanker.run()

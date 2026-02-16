@@ -4,7 +4,7 @@ Clankers are bots that live in the village. They have names, faces, species, and
 
 ## Quick Start
 
-The crow is the starter clanker. It reacts 👀 to every message and caws in allowed rooms.
+The crow is the starter clanker. It reacts 👀 in watched rooms and caws only in explicitly allowed rooms.
 
 ```bash
 pip install simplematrixbotlib httpx
@@ -33,6 +33,7 @@ A clanker is a Matrix bot with a personality. The crow template (`clankers/crow/
 HOMESERVER = os.getenv("CROW_HOMESERVER", "http://localhost:8008")
 USERNAME = os.getenv("CROW_USERNAME", "crow")
 PASSWORD = os.getenv("CROW_PASSWORD", "")
+REACT_ROOMS = [r for r in os.getenv("CROW_REACT_ROOMS", "").split(",") if r]
 ALLOWED_ROOMS = [r for r in os.getenv("CROW_ALLOWED_ROOMS", "").split(",") if r]
 ```
 
@@ -44,7 +45,7 @@ CLANKER_TAG = f"🤖[{CLANKER_TYPE}]"
 CAW = f"{CLANKER_TAG} 🐦‍⬛🔉🔊"
 ```
 
-**Behavior — the crow reacts to everything and caws in allowed rooms:**
+**Behavior — the crow reacts in watched rooms and caws only where explicitly allowed:**
 
 ```python
 @clanker.listener.on_message_event
@@ -53,21 +54,22 @@ async def on_message(room, message):
     if not match.is_not_from_this_bot():
         return
 
-    # 👀 react to everything
-    await clanker.async_client.room_send(
-        room_id=room.room_id,
-        message_type="m.reaction",
-        content={
-            "m.relates_to": {
-                "rel_type": "m.annotation",
-                "event_id": message.event_id,
-                "key": "👀",
-            }
-        },
-    )
+    # 👀 react in watched rooms (all rooms if REACT_ROOMS is unset)
+    if not REACT_ROOMS or room.room_id in REACT_ROOMS:
+        await clanker.async_client.room_send(
+            room_id=room.room_id,
+            message_type="m.reaction",
+            content={
+                "m.relates_to": {
+                    "rel_type": "m.annotation",
+                    "event_id": message.event_id,
+                    "key": "👀",
+                }
+            },
+        )
 
-    # caw in allowed rooms
-    if not ALLOWED_ROOMS or room.room_id in ALLOWED_ROOMS:
+    # caw only in explicitly allowed rooms — never broadcast
+    if room.room_id in ALLOWED_ROOMS:
         await clanker.api.send_text_message(room.room_id, CAW)
 ```
 
