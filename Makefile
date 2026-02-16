@@ -92,9 +92,14 @@ tunnel-url: ## Show current tunnel URL and check if live
 	URL=$$(docker compose logs cloudflared 2>&1 | grep -oP 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' | tail -1); \
 	if [ -z "$$URL" ]; then echo "No tunnel URL found in logs"; exit 1; fi; \
 	echo "Tunnel URL: $$URL"; \
-	echo "Checking $$URL/_matrix/client/versions ..."; \
-	curl -v --max-time 5 "$$URL/_matrix/client/versions" 2>&1; \
-	echo ""
+	LAST_SEEN=$$(docker compose logs --timestamps cloudflared 2>&1 | grep "$$URL" | tail -1 | grep -oP '^\S+'); \
+	if [ -n "$$LAST_SEEN" ]; then echo "Last seen in logs: $$LAST_SEEN"; fi; \
+	echo "Checking if tunnel is reachable ..."; \
+	if curl -sf --max-time 5 "$$URL/_matrix/client/versions" > /dev/null 2>&1; then \
+		echo "✓ LIVE - Tunnel is reachable"; \
+	else \
+		echo "✗ UNREACHABLE - URL may be stale (tunnel died or DNS expired)"; \
+	fi
 
 publish: ## Push current tunnel URL to server.json on GitHub
 	set -e; \
@@ -114,7 +119,7 @@ publish: ## Push current tunnel URL to server.json on GitHub
 	CONTENT=$$(base64 -w 0 < server.json); \
 	echo "Base64 content length: $$(echo -n "$$CONTENT" | wc -c) chars"; \
 	echo "Fetching current SHA for server.json ..."; \
-	SHA=$$(gh api "repos/$$REPO/contents/server.json" --jq .sha 2>/dev/null || echo ""); \
+	SHA=$$(gh api "repos/$$REPO/contents/server.json" 2>/dev/null | jq -r '.sha // ""'); \
 	echo "Current SHA: $$SHA"; \
 	if [ -n "$$SHA" ]; then \
 		echo "Updating existing file ..."; \

@@ -82,6 +82,15 @@ python3 mesh-admin/mesh_admin.py revoke-token <token>
    ```
 4. They add yours to their `peers.json`
 
+## Documentation
+
+- **[Quickstart Guide](docs/quickstart.md)** — Step-by-step getting started
+- **[Architecture](docs/architecture.md)** — System design and data flow
+- **[Setup Guide](docs/setup.md)** — Detailed setup instructions
+- **[Operations](docs/operations.md)** — Day-to-day commands and troubleshooting
+- **[Named Tunnel Setup](docs/named-tunnel.md)** — Upgrade to stable Cloudflare tunnel
+- **[Networking Guide](docs/networking.md)** — Port forwarding and network configuration
+
 ## File Structure
 
 ```
