@@ -1,0 +1,5 @@
+clankers:
+  - name: Shadow Crow
+    entrypoint: crow/main.py
+    matrix_user: "@shadow-crow:server.org"
+    password: $PASSWORD_SHADOW_CROW
