@@ -91,6 +91,7 @@ python3 mesh-admin/mesh_admin.py revoke-token <token>
 - **[Architecture](docs/architecture.md)** — System design and data flow
 - **[Setup Guide](docs/setup.md)** — Detailed setup instructions
 - **[Operations](docs/operations.md)** — Day-to-day commands and troubleshooting
+- **[Systemd Service](docs/systemd-service.md)** — Auto-start on boot with systemd
 - **[Named Tunnel Setup](docs/named-tunnel.md)** — Upgrade to stable Cloudflare tunnel
 - **[Networking Guide](docs/networking.md)** — Port forwarding and network configuration
 
@@ -117,6 +118,7 @@ python3 mesh-admin/mesh_admin.py revoke-token <token>
     ├── architecture.md        # system design and data flow
     ├── operations.md          # day-to-day commands and troubleshooting
     ├── setup.md               # detailed setup guide
+    ├── systemd-service.md     # auto-start on boot with systemd
     ├── named-tunnel.md        # named Cloudflare tunnel upgrade
     └── networking.md          # port forwarding and network guides
 ```
