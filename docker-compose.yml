@@ -23,7 +23,29 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared
-    command: tunnel --no-autoupdate --url http://synapse:8008
+    volumes:
+      - ./runtime:/runtime
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        cloudflared tunnel --no-autoupdate --url http://synapse:8008 2>&1 \
+          | tee /dev/stderr \
+          | grep --line-buffered -oP 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' \
+          | while read url; do echo "$url" > /runtime/tunnel-url; done
     depends_on:
       - synapse
+    restart: unless-stopped
+
+  tunnel-watcher:
+    build: ./tunnel-watcher
+    container_name: tunnel-watcher
+    volumes:
+      - ./runtime:/runtime:ro
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_REPO=${GITHUB_REPO}
+      - NODE_NAME=${NODE_NAME}
+      - POLL_INTERVAL=${POLL_INTERVAL:-60}
+    depends_on:
+      - cloudflared
     restart: unless-stopped
