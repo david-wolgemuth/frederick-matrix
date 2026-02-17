@@ -161,6 +161,15 @@ def gh_setup() -> None:
     print("  GitHub Pages enabled (workflow).")
 
 
+def start_synapse() -> None:
+    """Start synapse service so admin user creation can proceed."""
+    print("  Starting synapse...")
+    result = _run(["docker", "compose", "up", "-d", "synapse"])
+    if result.returncode != 0:
+        print("ERROR: Could not start synapse", file=sys.stderr)
+        sys.exit(result.returncode)
+
+
 def cmd_setup(args) -> None:
     """Run full first-time setup."""
     steps = [
@@ -168,6 +177,8 @@ def cmd_setup(args) -> None:
         ("Configuring Element", element_configure),
         ("Generating Synapse config", synapse_generate),
         ("Configuring Synapse", synapse_configure),
+        ("Starting Synapse", start_synapse),
+        ("Creating admin user", admin_user),
         ("Setting up GitHub Pages", gh_setup),
     ]
 
@@ -177,6 +188,6 @@ def cmd_setup(args) -> None:
 
     print("\nSetup complete.")
     print("Next steps:")
-    print("  ./manage.py up          # start services")
+    print("  ./manage.py up          # start full stack (tunnel + watcher)")
     print("  ./manage.py token configure   # set up admin credentials for token management")
     print("  ./manage.py status      # check everything is healthy")
