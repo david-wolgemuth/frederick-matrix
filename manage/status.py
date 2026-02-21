@@ -1,28 +1,23 @@
-#!/usr/bin/env python3
-"""frederick-matrix status checker.
+"""Status checks — docker, localhost, tunnel, GitHub Pages.
 
-Usage:
-    ./scripts/status.py              # all checks
-    ./scripts/status.py docker       # just docker
-    ./scripts/status.py localhost    # just localhost
-    ./scripts/status.py tunnel       # just tunnel
-    ./scripts/status.py pages        # just github pages
+Ported from scripts/status.py.
 """
-import argparse
+
 import json
 import re
+import socket
 import subprocess
-import sys
-import urllib.request
 import urllib.error
+import urllib.request
 from pathlib import Path
 
+TUNNEL_URL_FILE = Path(__file__).parent.parent / "runtime" / "tunnel-url"
 
-def run(cmd: str, timeout: int = 10) -> subprocess.CompletedProcess:
-    """Run a shell command, capture output, never raise on failure."""
+
+def _run(cmd: list[str] | str, timeout: int = 10, shell: bool = False) -> subprocess.CompletedProcess:
     try:
         return subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=timeout
+            cmd, shell=shell, capture_output=True, text=True, timeout=timeout
         )
     except subprocess.TimeoutExpired:
         return subprocess.CompletedProcess(
@@ -31,7 +26,6 @@ def run(cmd: str, timeout: int = 10) -> subprocess.CompletedProcess:
 
 
 def http_check(url: str, timeout: int = 5, verbose: bool = True) -> dict:
-    """GET a URL, return {status, headers, body, error} dict. Uses urllib only."""
     result = {"url": url, "status": None, "headers": {}, "body": "", "error": None}
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "frederick-matrix-status/1.0"})
@@ -50,8 +44,6 @@ def http_check(url: str, timeout: int = 5, verbose: bool = True) -> dict:
         print(f"  GET {url}")
         if result["status"]:
             print(f"  HTTP {result['status']}")
-            for k, v in result["headers"].items():
-                print(f"    {k}: {v}")
         if result["body"]:
             body = result["body"]
             if len(body) > 500:
@@ -67,44 +59,38 @@ def http_check(url: str, timeout: int = 5, verbose: bool = True) -> dict:
     return result
 
 
-def print_section(title: str) -> None:
-    """Print a section header."""
+def _section(title: str) -> None:
     print(f"\n{'=' * 60}")
     print(f"  {title}")
     print(f"{'=' * 60}\n")
 
 
 def check_docker(verbose: bool = True) -> None:
-    """Run docker compose ps, docker compose images, recent cloudflared logs."""
-    print_section("Docker")
+    _section("Docker")
 
     print("--- Containers ---")
-    result = run("docker compose ps")
-    print(result.stdout)
-    if result.stderr:
-        print(result.stderr)
+    r = _run(["docker", "compose", "ps"])
+    print(r.stdout)
+    if r.stderr:
+        print(r.stderr)
 
     if verbose:
         print("--- Images ---")
-        result = run("docker compose images")
-        print(result.stdout)
+        r = _run(["docker", "compose", "images"])
+        print(r.stdout)
 
         print("--- Recent cloudflared logs (last 10) ---")
-        result = run("docker compose logs cloudflared --tail 10")
-        print(result.stdout)
-        if result.stderr:
-            print(result.stderr)
+        r = _run(["docker", "compose", "logs", "cloudflared", "--tail", "10"])
+        print(r.stdout)
+        if r.stderr:
+            print(r.stderr)
 
 
 def check_localhost(verbose: bool = True) -> None:
-    """Check Synapse at :8008 and Element at :8080."""
-    print_section("Localhost")
+    _section("Localhost")
 
     print("--- Synapse (http://localhost:8008) ---")
-    result = http_check(
-        "http://localhost:8008/_matrix/client/versions",
-        verbose=verbose,
-    )
+    result = http_check("http://localhost:8008/_matrix/client/versions", verbose=verbose)
     if result["body"] and not result["error"]:
         try:
             data = json.loads(result["body"])
@@ -139,28 +125,27 @@ def check_localhost(verbose: bool = True) -> None:
 
 
 def get_tunnel_url() -> str | None:
-    """Extract most recent trycloudflare.com URL from cloudflared logs."""
-    result = run("docker compose logs cloudflared 2>&1")
-    urls = re.findall(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", result.stdout)
-    return urls[-1] if urls else None
+    """Read tunnel URL from runtime/tunnel-url file."""
+    try:
+        content = TUNNEL_URL_FILE.read_text().strip()
+        return content if content else None
+    except FileNotFoundError:
+        return None
 
 
 def check_tunnel(verbose: bool = True) -> None:
-    """Resolve tunnel URL and hit /_matrix/client/versions."""
-    print_section("Cloudflare Tunnel")
+    _section("Cloudflare Tunnel")
 
     url = get_tunnel_url()
     if not url:
-        print("  No tunnel URL found in cloudflared logs.")
+        print("  No tunnel URL found in runtime/tunnel-url.")
         print("  Is cloudflared running? Check: docker compose logs cloudflared")
         return
 
-    print(f"  Tunnel URL (from logs): {url}")
+    print(f"  Tunnel URL: {url}")
     print()
 
-    # DNS check
-    import socket
-    hostname = url.replace("https://", "")
+    hostname = url.replace("https://", "").replace("http://", "")
     print(f"--- DNS resolve: {hostname} ---")
     try:
         ips = socket.getaddrinfo(hostname, 443)
@@ -168,7 +153,7 @@ def check_tunnel(verbose: bool = True) -> None:
         print(f"  Resolved to: {', '.join(unique_ips)}")
     except socket.gaierror as e:
         print(f"  DNS FAILED: {e}")
-        print("  Tunnel URL is stale — cloudflared needs to establish a new connection.")
+        print("  Tunnel URL is stale — run: ./manage.py tunnel restart")
         return
 
     print()
@@ -181,17 +166,15 @@ def check_tunnel(verbose: bool = True) -> None:
 
 
 def get_github_pages_base() -> str | None:
-    """Derive https://<owner>.github.io/<repo> from gh CLI."""
-    result = run("gh repo view --json nameWithOwner -q .nameWithOwner")
-    if result.returncode != 0 or not result.stdout.strip():
+    r = _run(["gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"])
+    if r.returncode != 0 or not r.stdout.strip():
         return None
-    owner, repo = result.stdout.strip().split("/")
+    owner, repo = r.stdout.strip().split("/")
     return f"https://{owner}.github.io/{repo}"
 
 
 def check_pages(verbose: bool = True) -> None:
-    """Check Element, server.json, home.html on GitHub Pages."""
-    print_section("GitHub Pages")
+    _section("GitHub Pages")
 
     base = get_github_pages_base()
     if not base:
@@ -200,26 +183,24 @@ def check_pages(verbose: bool = True) -> None:
 
     print(f"  Pages base: {base}")
 
-    # Check Pages deployment config
-    result = run("gh api repos/$(gh repo view --json nameWithOwner -q .nameWithOwner)/pages --jq '.build_type' 2>/dev/null")
-    if result.stdout.strip():
-        print(f"  Build type: {result.stdout.strip()}")
-    print()
-
-    # Check most recent workflow run
     if verbose:
         print("--- Latest Pages deployment ---")
-        result = run("gh run list --workflow=deploy-pages.yml --limit 1 --json status,conclusion,createdAt,displayTitle")
-        if result.stdout.strip():
+        r = _run([
+            "gh", "run", "list",
+            "--workflow=deploy-pages.yml",
+            "--limit", "1",
+            "--json", "status,conclusion,createdAt,displayTitle",
+        ])
+        if r.stdout.strip():
             try:
-                runs = json.loads(result.stdout)
+                runs = json.loads(r.stdout)
                 if runs:
-                    r = runs[0]
-                    print(f"  {r.get('displayTitle', '?')}")
-                    print(f"  Status: {r.get('status', '?')} / {r.get('conclusion', '?')}")
-                    print(f"  Created: {r.get('createdAt', '?')}")
+                    run = runs[0]
+                    print(f"  {run.get('displayTitle', '?')}")
+                    print(f"  Status: {run.get('status', '?')} / {run.get('conclusion', '?')}")
+                    print(f"  Created: {run.get('createdAt', '?')}")
             except json.JSONDecodeError:
-                print(f"  {result.stdout.strip()}")
+                print(f"  {r.stdout.strip()}")
         print()
 
     endpoints = [
@@ -233,8 +214,6 @@ def check_pages(verbose: bool = True) -> None:
     for url, label in endpoints:
         print(f"--- {label}: {url} ---")
         result = http_check(url, verbose=verbose)
-
-        # Parse JSON responses for extra info
         if result["body"] and not result["error"] and url.endswith(".json"):
             try:
                 data = json.loads(result["body"])
@@ -254,23 +233,8 @@ def check_pages(verbose: bool = True) -> None:
         print()
 
 
-def main() -> None:
-    """Parse args and run requested checks."""
-    parser = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    parser.add_argument(
-        "sections",
-        nargs="*",
-        default=[],
-        help="Sections to check: docker, localhost, tunnel, pages (default: all)",
-    )
-    parser.add_argument(
-        "-q", "--quiet", action="store_true", help="Summary only, no verbose output"
-    )
-    args = parser.parse_args()
-
+def cmd_status(args) -> None:
+    """Run requested status checks."""
     checks = {
         "docker": check_docker,
         "localhost": check_localhost,
@@ -278,10 +242,17 @@ def main() -> None:
         "pages": check_pages,
     }
 
-    sections = list(checks.keys()) if not args.sections or "all" in args.sections else args.sections
+    sections_arg = getattr(args, "section", None)
+    if sections_arg:
+        sections = [sections_arg]
+    else:
+        sections = list(checks.keys())
+
+    verbose = not getattr(args, "quiet", False)
+
     for section in sections:
-        checks[section](verbose=not args.quiet)
-
-
-if __name__ == "__main__":
-    main()
+        if section not in checks:
+            import sys
+            print(f"Unknown section: {section}. Choose from: {', '.join(checks)}", file=sys.stderr)
+            sys.exit(1)
+        checks[section](verbose=verbose)
