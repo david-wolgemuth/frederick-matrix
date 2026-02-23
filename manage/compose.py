@@ -1,14 +1,14 @@
 """Compose helpers: up, down, env injection, tunnel URL waiting."""
 
 import os
+import re
 import subprocess
 import sys
 import time
-from pathlib import Path
 
-TUNNEL_URL_FILE = Path(__file__).parent.parent / "runtime" / "tunnel-url"
 TUNNEL_WAIT_SECONDS = 120
 TUNNEL_POLL_INTERVAL = 2
+TUNNEL_URL_PATTERN = re.compile(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com")
 
 
 def _run(args: list[str], **kwargs) -> subprocess.CompletedProcess:
@@ -84,15 +84,19 @@ def cmd_down(args) -> None:
 
 
 def _wait_for_tunnel_url() -> str | None:
-    """Poll runtime/tunnel-url file until it contains a URL or timeout."""
+    """Poll cloudflared container logs until a tunnel URL appears or timeout."""
     deadline = time.time() + TUNNEL_WAIT_SECONDS
     attempt = 0
     while time.time() < deadline:
         attempt += 1
-        if TUNNEL_URL_FILE.exists():
-            content = TUNNEL_URL_FILE.read_text().strip()
-            if content:
-                return content
+        result = _run(
+            ["docker", "compose", "logs", "cloudflared", "--tail", "100"],
+            capture_output=True, text=True,
+        )
+        if result.returncode == 0:
+            urls = TUNNEL_URL_PATTERN.findall(result.stdout + result.stderr)
+            if urls:
+                return urls[-1]
         print(f"  attempt {attempt}...")
         time.sleep(TUNNEL_POLL_INTERVAL)
     return None

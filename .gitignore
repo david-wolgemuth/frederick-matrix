@@ -3,3 +3,4 @@ element/
 tmp/
 runtime/
 .mesh-admin.json
+manage/__pycache__/

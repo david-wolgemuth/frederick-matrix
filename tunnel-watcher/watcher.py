@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
-"""Tunnel URL watcher — polls /runtime/tunnel-url and publishes to GitHub Pages.
+"""Tunnel URL watcher — reads cloudflared logs and publishes URL to GitHub.
 
 Reads env vars:
-  GITHUB_TOKEN   - GitHub token (from `gh auth token` on host)
-  GITHUB_REPO    - full repo slug, e.g. "david-wolgemuth/frederick-matrix"
-  NODE_NAME      - short name for this node, e.g. "david-wolgemuth"
-  POLL_INTERVAL  - seconds between checks (default: 60)
+  GITHUB_TOKEN           - GitHub token (from `gh auth token` on host)
+  GITHUB_REPO            - full repo slug, e.g. "david-wolgemuth/frederick-matrix"
+  NODE_NAME              - short name for this node, e.g. "david-wolgemuth"
+  POLL_INTERVAL          - seconds between checks (default: 60)
+  CLOUDFLARED_CONTAINER  - name of cloudflared container (default: "cloudflared")
 """
 
+import base64
 import json
 import logging
 import os
+import re
 import sys
 import time
-from pathlib import Path
 
+import docker
 import requests
 
 logging.basicConfig(
@@ -24,7 +27,7 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-TUNNEL_URL_FILE = Path("/runtime/tunnel-url")
+TUNNEL_URL_PATTERN = re.compile(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com")
 
 
 def get_env(key: str) -> str:
@@ -35,12 +38,16 @@ def get_env(key: str) -> str:
     return val
 
 
-def read_tunnel_url() -> str | None:
-    """Return the current tunnel URL from the shared volume file, or None."""
+def read_tunnel_url(container_name: str) -> str | None:
+    """Extract the latest tunnel URL from cloudflared container logs."""
     try:
-        content = TUNNEL_URL_FILE.read_text().strip()
-        return content if content else None
-    except FileNotFoundError:
+        client = docker.from_env()
+        container = client.containers.get(container_name)
+        logs = container.logs(tail=100).decode("utf-8", errors="replace")
+        urls = TUNNEL_URL_PATTERN.findall(logs)
+        return urls[-1] if urls else None
+    except Exception as exc:
+        log.debug("Could not read container logs: %s", exc)
         return None
 
 
@@ -54,7 +61,6 @@ def publish(url: str, github_token: str, github_repo: str, node_name: str) -> No
     }
 
     server_json = json.dumps({"name": node_name, "url": url}, indent=2) + "\n"
-    import base64
     content_b64 = base64.b64encode(server_json.encode()).decode()
 
     # Fetch current SHA (needed for updates)
@@ -81,6 +87,7 @@ def main() -> None:
     github_token = get_env("GITHUB_TOKEN")
     github_repo = get_env("GITHUB_REPO")
     node_name = get_env("NODE_NAME")
+    container_name = os.environ.get("CLOUDFLARED_CONTAINER", "cloudflared")
     poll_interval = int(os.environ.get("POLL_INTERVAL", "60"))
 
     log.info("Starting tunnel watcher (poll every %ss)", poll_interval)
@@ -89,7 +96,7 @@ def main() -> None:
     current_url: str | None = None
 
     while True:
-        url = read_tunnel_url()
+        url = read_tunnel_url(container_name)
 
         if url and url != current_url:
             log.info("Detected tunnel URL: %s", url)
